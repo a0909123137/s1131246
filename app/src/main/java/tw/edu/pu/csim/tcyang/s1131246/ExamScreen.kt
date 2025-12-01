@@ -2,14 +2,17 @@ package tw.edu.pu.csim.tcyang.s1131246
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -25,15 +28,27 @@ fun ExamScreen(viewModel: ExamViewModel = viewModel()) {
     val density = LocalDensity.current
 
     // 取得螢幕真實的像素尺寸
-    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }.toInt()
-    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }.toInt()
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
 
-    // 收集成績狀態
+    // 收集狀態
     val score by viewModel.score.collectAsState()
+    val serviceX by viewModel.serviceX.collectAsState()
+    val serviceY by viewModel.serviceY.collectAsState()
+    val currentService by viewModel.currentService.collectAsState()
 
     // 圖示尺寸為 300px，轉換為 dp
     val iconSizePx = 300
     val iconSizeDp = with(density) { iconSizePx.toDp() }
+
+    // 服務圖示尺寸（100dp）
+    val serviceSizeDp = 100.dp
+    val serviceSizePx = with(density) { serviceSizeDp.toPx() }
+
+    // 啟動下落動畫
+    LaunchedEffect(Unit) {
+        viewModel.startFalling(screenWidthPx, screenHeightPx)
+    }
 
     Box(
         modifier = Modifier
@@ -78,7 +93,7 @@ fun ExamScreen(viewModel: ExamViewModel = viewModel()) {
 
                 // 螢幕尺寸（顯示真實像素）
                 Text(
-                    text = "螢幕大小：$screenWidthPx.0 * $screenHeightPx.0",
+                    text = "螢幕大小：${screenWidthPx.toInt()}.0 * ${screenHeightPx.toInt()}.0",
                     fontSize = 20.sp,
                     color = Color.Black,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -93,7 +108,7 @@ fun ExamScreen(viewModel: ExamViewModel = viewModel()) {
             }
         }
 
-        // 左上角 - 嬰幼兒圖示（role0.png）- 切齊螢幕中線
+        // 左上角 - 嬰幼兒圖示（role0.png）
         Image(
             painter = painterResource(id = R.drawable.role0),
             contentDescription = "嬰幼兒",
@@ -104,7 +119,7 @@ fun ExamScreen(viewModel: ExamViewModel = viewModel()) {
             contentScale = ContentScale.Fit
         )
 
-        // 右上角 - 兒童圖示（role1.png）- 切齊螢幕中線
+        // 右上角 - 兒童圖示（role1.png）
         Image(
             painter = painterResource(id = R.drawable.role1),
             contentDescription = "兒童",
@@ -132,6 +147,36 @@ fun ExamScreen(viewModel: ExamViewModel = viewModel()) {
             modifier = Modifier
                 .size(iconSizeDp)
                 .align(Alignment.BottomEnd),
+            contentScale = ContentScale.Fit
+        )
+
+        // 下落的服務圖示
+        val serviceDrawable = when(currentService) {
+            0 -> R.drawable.service0
+            1 -> R.drawable.service1
+            2 -> R.drawable.service2
+            else -> R.drawable.service3
+        }
+
+        Image(
+            painter = painterResource(id = serviceDrawable),
+            contentDescription = "服務圖示",
+            modifier = Modifier
+                .size(serviceSizeDp)
+                .offset(
+                    x = with(density) { (serviceX - serviceSizePx / 2).toDp() },
+                    y = with(density) { serviceY.toDp() }
+                )
+                .pointerInput(Unit) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        val newX = (serviceX + dragAmount.x).coerceIn(
+                            serviceSizePx / 2,
+                            screenWidthPx - serviceSizePx / 2
+                        )
+                        viewModel.updateServiceX(newX)
+                    }
+                },
             contentScale = ContentScale.Fit
         )
     }
